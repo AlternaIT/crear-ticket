@@ -507,13 +507,28 @@ async function exchangeCode(code) {
 
 // Fetch the logged-in user's Zoho profile
 async function fetchZohoProfile(token) {
-  // Try Zoho Desk /myinfo first (gives name + email used for desk tickets)
   try {
     const res = await fetch('https://desk.zoho.com/api/v1/myinfo', {
       headers: { 'Authorization': 'Zoho-oauthtoken ' + token, 'orgId': CONFIG.orgId }
     });
     if (res.ok) {
       const d = await res.json();
+
+      // Obtener nombre del departamento a partir del ID
+      let departmentName = '';
+      const deptId = (d.associatedDepartmentIds || [])[0];
+      if (deptId) {
+        try {
+          const deptRes = await fetch('https://desk.zoho.com/api/v1/departments/' + deptId, {
+            headers: { 'Authorization': 'Zoho-oauthtoken ' + token, 'orgId': CONFIG.orgId }
+          });
+          if (deptRes.ok) {
+            const dept = await deptRes.json();
+            departmentName = dept.name || '';
+          }
+        } catch(_) {}
+      }
+
       return {
         firstName:  d.firstName || '',
         lastName:   d.lastName  || '',
@@ -521,7 +536,7 @@ async function fetchZohoProfile(token) {
         phone:      d.phone     || '',
         avatarUrl:  d.photoURL  || null,
         zohoId:     d.id        || '',
-        department: d.department?.name || d.departmentName || d.department || ''
+        department: departmentName
       };
     }
   } catch(_) {}
@@ -546,7 +561,6 @@ async function fetchZohoProfile(token) {
     }
   } catch(_) {}
 
-  // Demo fallback when running without real credentials
   return {
     firstName: 'Usuario', lastName: 'Demo',
     email: 'usuario.demo@alterna.com',
