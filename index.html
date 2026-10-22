@@ -771,6 +771,41 @@ function showToast(msg, type='') {
 }
 
 // ══════════════════════════════════════════════════════════════
+//  CONTACT LOOKUP / CREATE
+// ══════════════════════════════════════════════════════════════
+async function getOrCreateContact(token, email, firstName, lastName, phone) {
+  // 1. Search for an existing contact by email
+  try {
+    const searchRes = await fetch(
+      'https://desk.zoho.com/api/v1/contacts/search?email=' + encodeURIComponent(email),
+      { headers: { 'Authorization': 'Zoho-oauthtoken ' + token, 'orgId': CONFIG.orgId } }
+    );
+    if (searchRes.ok) {
+      const searchData = await searchRes.json();
+      const contacts = searchData.data || [];
+      if (contacts.length > 0) return contacts[0].id;
+    }
+  } catch(_) {}
+
+  // 2. Contact not found — create a new one
+  const body = { email, firstName, lastName };
+  if (phone) body.phone = phone;
+
+  const createRes = await fetch('https://desk.zoho.com/api/v1/contacts', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Zoho-oauthtoken ' + token,
+      'orgId': CONFIG.orgId
+    },
+    body: JSON.stringify(body)
+  });
+  if (!createRes.ok) throw new Error('No se pudo crear el contacto: HTTP ' + createRes.status);
+  const newContact = await createRes.json();
+  return newContact.id;
+}
+
+// ══════════════════════════════════════════════════════════════
 //  SUBMIT
 // ══════════════════════════════════════════════════════════════
 document.getElementById('ticketForm').addEventListener('submit', async function(e) {
@@ -799,15 +834,25 @@ document.getElementById('ticketForm').addEventListener('submit', async function(
     subcategory ? '\nSubcategoría: ' + subcategory : ''
   ].join('');
 
-  const ticketPayload = {
-    subject, description: fullDescription, email,
-    phone: phone || undefined, priority, category,
-    departmentId: CONFIG.departmentId,
-    cf: { cf_nombre_completo: firstName + ' ' + lastName }
-  };
-
   try {
-    let response;
+    // Resolve (or create) the Zoho Desk contact before submitting
+    let contactId;
+    if (!CONFIG.useProxy) {
+      document.getElementById('btnText').textContent = 'Buscando contacto…';
+      contactId = await getOrCreateContact(zohoAccessToken, email, firstName, lastName, phone);
+    }
+
+    const ticketPayload = {
+      subject, description: fullDescription,
+      contactId: contactId || undefined,
+      email, phone: phone || undefined,
+      priority, category,
+      departmentId: CONFIG.departmentId,
+      cf: { cf_nombre_completo: firstName + ' ' + lastName }
+    };
+
+    document.getElementById('btnText').textContent = 'Enviando…';
+
     if (CONFIG.useProxy) {
       response = await fetch(CONFIG.proxyUrl, {
         method: 'POST',
