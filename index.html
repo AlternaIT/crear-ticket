@@ -321,6 +321,20 @@
           <input type="tel" id="phone" name="phone" placeholder="+502 5555 0000" autocomplete="tel" />
         </div>
       </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="department">Departamento</label>
+          <div class="field-locked">
+            <input type="text" id="department" name="department" readonly placeholder="—" />
+            <svg class="lock-icon" width="14" height="14" fill="none" viewBox="0 0 24 24">
+              <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="2"/>
+              <path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+        <div class="field"></div>
+      </div>
     </div>
 
     <!-- TICKET DETAILS -->
@@ -508,12 +522,13 @@ async function fetchZohoProfile(token) {
     if (res.ok) {
       const d = await res.json();
       return {
-        firstName: d.firstName || '',
-        lastName:  d.lastName  || '',
-        email:     d.emailId   || d.email || '',
-        phone:     d.phone     || '',
-        avatarUrl: d.photoURL  || null,
-        zohoId:    d.id        || ''
+        firstName:  d.firstName || '',
+        lastName:   d.lastName  || '',
+        email:      d.emailId   || d.email || '',
+        phone:      d.phone     || '',
+        avatarUrl:  d.photoURL  || null,
+        zohoId:     d.id        || '',
+        department: d.department?.name || d.departmentName || d.department || ''
       };
     }
   } catch(_) {}
@@ -527,12 +542,13 @@ async function fetchZohoProfile(token) {
       const d = await res.json();
       const name = (d.Display_Name || d.display_name || '').split(' ');
       return {
-        firstName: d.First_Name || name[0] || '',
-        lastName:  d.Last_Name  || name.slice(1).join(' ') || '',
-        email:     d.Email      || d.email || '',
-        phone:     '',
-        avatarUrl: null,
-        zohoId:    d.ZSOID || ''
+        firstName:  d.First_Name || name[0] || '',
+        lastName:   d.Last_Name  || name.slice(1).join(' ') || '',
+        email:      d.Email      || d.email || '',
+        phone:      '',
+        avatarUrl:  null,
+        zohoId:     d.ZSOID || '',
+        department: ''
       };
     }
   } catch(_) {}
@@ -541,7 +557,8 @@ async function fetchZohoProfile(token) {
   return {
     firstName: 'Usuario', lastName: 'Demo',
     email: 'usuario.demo@alterna.com',
-    phone: '', avatarUrl: null, zohoId: 'demo'
+    phone: '', avatarUrl: null, zohoId: 'demo',
+    department: 'Tecnología'
   };
 }
 
@@ -553,6 +570,7 @@ function applyUserToForm(user) {
   document.getElementById('lastName').value  = user.lastName;
   document.getElementById('email').value     = user.email;
   if (user.phone) document.getElementById('phone').value = user.phone;
+  document.getElementById('department').value = user.department || '';
 
   // Banner
   const initials = ((user.firstName[0]||'') + (user.lastName[0]||'')).toUpperCase() || '?';
@@ -840,9 +858,10 @@ function resetForm() {
   document.getElementById('descCount').textContent = '0';
   document.getElementById('subcategory').innerHTML = '<option value="">— Selecciona —</option>';
   if (currentUser) {
-    document.getElementById('firstName').value = currentUser.firstName;
-    document.getElementById('lastName').value  = currentUser.lastName;
-    document.getElementById('email').value     = currentUser.email;
+    document.getElementById('firstName').value  = currentUser.firstName;
+    document.getElementById('lastName').value   = currentUser.lastName;
+    document.getElementById('email').value      = currentUser.email;
+    document.getElementById('department').value = currentUser.department || '';
   }
   const btn = document.getElementById('submitBtn');
   btn.disabled = false;
