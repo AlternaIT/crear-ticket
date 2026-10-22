@@ -433,7 +433,8 @@
 // ══════════════════════════════════════════════════════════════
 const CONFIG = {
   // Zoho API credentials
-  zohoClientId:    '1000.1AR218IBJPNPKCHCH3F7I5D8A2QLHN',   // from console.zoho.com → API Console
+  zohoClientId:     '1000.1AR218IBJPNPKCHCH3F7I5D8A2QLHN',
+  zohoClientSecret: 'e374e4e0944768223e5fc825df405afbeba2654ead',
   zohoRedirectUri: window.location.href.split('?')[0], // this page's URL
   zohoScopes:      'Desk.tickets.CREATE,Desk.contacts.READ,AaaServer.profile.READ',
 
@@ -491,25 +492,25 @@ async function exchangeCode(code) {
   const verifier = sessionStorage.getItem('zoho_pkce_verifier');
   if (!verifier) throw new Error('No PKCE verifier found');
 
-  // NOTE: Zoho requires client_secret for token exchange.
-  // For a pure client-side app, route this through your server proxy.
-  // If useProxy = true, the proxy handles the exchange securely.
-  if (CONFIG.useProxy) {
-    const res = await fetch(CONFIG.proxyUrl + '/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, code_verifier: verifier, redirect_uri: CONFIG.zohoRedirectUri })
-    });
-    if (!res.ok) throw new Error('Token exchange failed');
-    return res.json();
-  } else {
-    // ── DEMO / DEVELOPMENT MODE ───────────────────────────────────────
-    // In production, NEVER put client_secret in the browser.
-    // Replace with your proxy endpoint or use Zoho's implicit flow.
-    // For now we return a simulated token so the UI works end-to-end.
-    console.warn('[Alterna] Token exchange must happen server-side in production. Running in demo mode.');
-    return { access_token: 'DEMO_TOKEN_' + Date.now(), token_type: 'Bearer' };
-  }
+  const params = new URLSearchParams({
+    grant_type:    'authorization_code',
+    client_id:     CONFIG.zohoClientId,
+    client_secret: CONFIG.zohoClientSecret,
+    redirect_uri:  CONFIG.zohoRedirectUri,
+    code:          code,
+    code_verifier: verifier
+  });
+
+  const res = await fetch('https://accounts.zoho.com/oauth/v2/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString()
+  });
+
+  if (!res.ok) throw new Error('Token exchange failed: ' + res.status);
+  const data = await res.json();
+  if (data.error) throw new Error('Zoho error: ' + data.error);
+  return data;
 }
 
 // Fetch the logged-in user's Zoho profile
