@@ -469,19 +469,12 @@ async function generateCodeChallenge(verifier) {
 }
 
 async function loginWithZoho() {
-  const verifier  = generateCodeVerifier();
-  const challenge = await generateCodeChallenge(verifier);
-  sessionStorage.setItem('zoho_pkce_verifier', verifier);
-
   const params = new URLSearchParams({
-    response_type: 'code',
+    response_type: 'token',
     client_id:     CONFIG.zohoClientId,
     redirect_uri:  CONFIG.zohoRedirectUri,
     scope:         CONFIG.zohoScopes,
-    code_challenge: challenge,
-    code_challenge_method: 'S256',
-    access_type: 'offline',
-    prompt: 'consent'
+    prompt:        'consent'
   });
 
   window.location.href = 'https://accounts.zoho.com/oauth/v2/auth?' + params.toString();
@@ -611,14 +604,14 @@ async function boot() {
   showScreen('loading');
   setLoadingMsg('Verificando sesión…');
 
-  const params  = new URLSearchParams(window.location.search);
-  const code    = params.get('code');
-  const error   = params.get('error');
+  // Flujo implícito: el token llega en el hash (#access_token=...&error=...)
+  const hash   = new URLSearchParams(window.location.hash.replace('#', ''));
+  const token  = hash.get('access_token');
+  const error  = hash.get('error') || new URLSearchParams(window.location.search).get('error');
 
-  // Clean URL so the code can't be reused
-  if (code || error) {
-    const cleanUrl = window.location.origin + window.location.pathname;
-    window.history.replaceState({}, document.title, cleanUrl);
+  // Limpiar URL
+  if (token || error) {
+    window.history.replaceState({}, document.title, window.location.origin + window.location.pathname);
   }
 
   if (error) {
@@ -627,15 +620,11 @@ async function boot() {
     return;
   }
 
-  if (code) {
-    setLoadingMsg('Obteniendo token de acceso…');
+  if (token) {
+    zohoAccessToken = token;
+    sessionStorage.setItem('zoho_access_token', zohoAccessToken);
+    setLoadingMsg('Cargando tu perfil…');
     try {
-      const tokenData = await exchangeCode(code);
-      zohoAccessToken = tokenData.access_token;
-      sessionStorage.setItem('zoho_access_token', zohoAccessToken);
-      sessionStorage.removeItem('zoho_pkce_verifier');
-
-      setLoadingMsg('Cargando tu perfil…');
       const user = await fetchZohoProfile(zohoAccessToken);
       applyUserToForm(user);
       showScreen('form');
@@ -649,7 +638,7 @@ async function boot() {
     }
   }
 
-  // Check for existing session token
+  // Sesión guardada
   const saved = sessionStorage.getItem('zoho_access_token');
   if (saved) {
     zohoAccessToken = saved;
