@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Alterna — Enviar Ticket de Soporte</title>
+<style>
+  :root {
+    --green: #21b894;
+    --green-dark: #1aa07e;
+    --navy: #23263b;
+    --navy-light: #2e3250;
+    --bg: #f4f5f7;
+    --white: #ffffff;
+    --border: #e2e5ec;
+    --text: #1a1d2e;
+    --muted: #6b7280;
+    --error: #e53e3e;
+    --input-bg: #ffffff;
+    --radius: 8px;
+    --shadow: 0 2px 12px rgba(35,38,59,.09);
+    --shadow-lg: 0 8px 32px rgba(35,38,59,.14);
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161824; --white: #1e2132; --border: #2e3250;
+      --text: #e8eaf0; --muted: #9299b0; --input-bg: #252840;
+      --shadow: 0 2px 12px rgba(0,0,0,.3); --shadow-lg: 0 8px 32px rgba(0,0,0,.4);
+    }
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.55; min-height: 100%; }
+  body::before { content:""; position:fixed; inset:0 0 auto; height:env(safe-area-inset-top,0px); background:var(--navy); z-index:10; }
+
+  /* NAV */
+  .nav { background:var(--navy); padding:0 1.5rem; height:60px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:env(safe-area-inset-top,0px); z-index:10; }
+  .nav-logo { height:30px; display:block; }
+  .nav-badge { background:rgba(255,255,255,.1); color:rgba(255,255,255,.75); font-size:.72rem; font-weight:600; letter-spacing:.06em; padding:.25rem .7rem; border-radius:20px; text-transform:uppercase; }
+
+  /* USER CHIP in nav */
+  .nav-user { display:none; align-items:center; gap:.6rem; }
+  .nav-user.visible { display:flex; }
+  .nav-avatar { width:32px; height:32px; border-radius:50%; background:var(--green); color:#fff; font-weight:700; font-size:.85rem; display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; }
+  .nav-avatar img { width:100%; height:100%; object-fit:cover; }
+  .nav-user-name { color:rgba(255,255,255,.85); font-size:.85rem; font-weight:500; max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .nav-logout { background:none; border:none; color:rgba(255,255,255,.4); cursor:pointer; font-size:.75rem; padding:.2rem .4rem; border-radius:4px; font-family:inherit; transition:color .15s; }
+  .nav-logout:hover { color:rgba(255,255,255,.8); }
+
+  /* HERO */
+  .hero { background:linear-gradient(135deg,var(--navy) 0%,var(--navy-light) 100%); padding:2.5rem 1.5rem 2rem; text-align:center; border-bottom:3px solid var(--green); }
+  .hero h1 { color:#fff; font-size:1.6rem; font-weight:700; margin-bottom:.4rem; }
+  .hero p { color:rgba(255,255,255,.62); font-size:.95rem; max-width:460px; margin:0 auto; }
+  .hero-icon { width:48px; height:48px; background:var(--green); border-radius:50%; display:inline-flex; align-items:center; justify-content:center; margin-bottom:1rem; }
+
+  /* ── LOGIN SCREEN ── */
+  #loginScreen { display:none; }
+  #loginScreen.visible { display:block; }
+  .login-card {
+    max-width:420px; margin:3rem auto; background:var(--white);
+    border-radius:var(--radius); box-shadow:var(--shadow-lg); overflow:hidden;
+  }
+  .login-top { background:linear-gradient(135deg,var(--navy),var(--navy-light)); padding:2.5rem 2rem 2rem; text-align:center; }
+  .login-top h2 { color:#fff; font-size:1.3rem; font-weight:700; margin-bottom:.3rem; }
+  .login-top p { color:rgba(255,255,255,.6); font-size:.88rem; }
+  .login-body { padding:2rem; }
+  .login-body p { font-size:.9rem; color:var(--muted); margin-bottom:1.4rem; line-height:1.6; }
+  .btn-zoho-login {
+    width:100%; background:#e8512a; color:#fff; border:none; border-radius:var(--radius);
+    padding:.85rem 1.5rem; font-size:1rem; font-weight:700; cursor:pointer;
+    font-family:inherit; display:flex; align-items:center; justify-content:center; gap:.7rem;
+    transition:background .15s, transform .1s;
+  }
+  .btn-zoho-login:hover { background:#d14420; }
+  .btn-zoho-login:active { transform:scale(.97); }
+  .login-divider { text-align:center; margin:1.2rem 0; color:var(--muted); font-size:.8rem; position:relative; }
+  .login-divider::before, .login-divider::after { content:""; position:absolute; top:50%; width:42%; height:1px; background:var(--border); }
+  .login-divider::before { left:0; } .login-divider::after { right:0; }
+  .login-note { font-size:.76rem; color:var(--muted); text-align:center; margin-top:1rem; }
+
+  /* ── LOADING SCREEN ── */
+  #loadingScreen { display:none; text-align:center; padding:4rem 2rem; }
+  #loadingScreen.visible { display:block; }
+  .loading-ring { width:48px; height:48px; border:4px solid var(--border); border-top-color:var(--green); border-radius:50%; animation:spin .8s linear infinite; margin:0 auto 1rem; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  #loadingScreen p { color:var(--muted); font-size:.95rem; }
+
+  /* MAIN */
+  .main { max-width:700px; margin:0 auto; padding:2rem 1rem 4rem; }
+
+  /* CARD */
+  .card { background:var(--white); border-radius:var(--radius); box-shadow:var(--shadow); padding:2rem; margin-bottom:1rem; }
+  .card-title { font-size:.8rem; font-weight:700; color:var(--green); text-transform:uppercase; letter-spacing:.08em; margin-bottom:1.4rem; padding-bottom:.5rem; border-bottom:1px solid var(--border); }
+
+  /* USER INFO BANNER */
+  .user-banner {
+    display:flex; align-items:center; gap:1rem;
+    background:rgba(33,184,148,.07); border:1px solid rgba(33,184,148,.2);
+    border-radius:var(--radius); padding:1rem 1.2rem; margin-bottom:1.5rem;
+  }
+  .user-banner-avatar { width:44px; height:44px; border-radius:50%; background:var(--green); color:#fff; font-weight:700; font-size:1.1rem; display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; }
+  .user-banner-avatar img { width:100%; height:100%; object-fit:cover; }
+  .user-banner-info { flex:1; min-width:0; }
+  .user-banner-name { font-weight:700; font-size:.97rem; }
+  .user-banner-email { color:var(--muted); font-size:.82rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .user-banner-tag { font-size:.72rem; background:rgba(33,184,148,.15); color:var(--green); font-weight:600; padding:.2rem .55rem; border-radius:10px; flex-shrink:0; }
+
+  /* LOCKED FIELD */
+  .field-locked { position:relative; }
+  .field-locked input { background:var(--bg); color:var(--muted); cursor:not-allowed; }
+  .lock-icon { position:absolute; right:.8rem; top:50%; transform:translateY(-50%); color:var(--muted); pointer-events:none; }
+
+  /* FIELDS */
+  .field { margin-bottom:1.25rem; }
+  .field:last-child { margin-bottom:0; }
+  .field-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+  @media (max-width:480px) { .field-row { grid-template-columns:1fr; } }
+  label { display:block; font-size:.875rem; font-weight:600; color:var(--text); margin-bottom:.4rem; }
+  label .req { color:var(--green); margin-left:2px; }
+  label .hint { font-weight:400; color:var(--muted); font-size:.8rem; margin-left:.4rem; }
+  input[type="text"], input[type="email"], input[type="tel"], select, textarea {
+    width:100%; background:var(--input-bg); border:1.5px solid var(--border);
+    border-radius:var(--radius); padding:.65rem .9rem; font-size:.95rem;
+    font-family:inherit; color:var(--text); transition:border-color .15s,box-shadow .15s;
+    appearance:none; -webkit-appearance:none;
+  }
+  input:focus, select:focus, textarea:focus { outline:none; border-color:var(--green); box-shadow:0 0 0 3px rgba(33,184,148,.14); }
+  input.error, select.error, textarea.error { border-color:var(--error); box-shadow:0 0 0 3px rgba(229,62,62,.1); }
+  textarea { resize:vertical; min-height:120px; }
+  .select-wrap { position:relative; }
+  .select-wrap::after { content:""; pointer-events:none; position:absolute; right:.9rem; top:50%; transform:translateY(-50%); width:0; height:0; border-left:5px solid transparent; border-right:5px solid transparent; border-top:6px solid var(--muted); }
+  select { padding-right:2.2rem; cursor:pointer; }
+
+  /* FILE */
+  .file-area { border:2px dashed var(--border); border-radius:var(--radius); padding:1.4rem; text-align:center; cursor:pointer; transition:border-color .15s,background .15s; }
+  .file-area:hover, .file-area.dragover { border-color:var(--green); background:rgba(33,184,148,.04); }
+  .file-area input { display:none; }
+  .file-area p { font-size:.875rem; color:var(--muted); margin-top:.4rem; }
+  .file-area p strong { color:var(--green); cursor:pointer; }
+  .file-icon { color:var(--muted); margin-bottom:.3rem; }
+  .file-list { margin-top:.8rem; display:flex; flex-direction:column; gap:.4rem; }
+  .file-item { display:flex; align-items:center; gap:.5rem; background:rgba(33,184,148,.07); border-radius:6px; padding:.4rem .7rem; font-size:.83rem; color:var(--text); }
+  .file-item-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .file-remove { background:none; border:none; color:var(--muted); cursor:pointer; padding:0; font-size:1rem; line-height:1; display:flex; align-items:center; }
+  .file-remove:hover { color:var(--error); }
+
+  /* PRIORITY */
+  .priority-group { display:flex; gap:.6rem; flex-wrap:wrap; }
+  .priority-option { display:none; }
+  .priority-label { display:inline-flex; align-items:center; gap:.4rem; padding:.45rem 1rem; border-radius:20px; border:1.5px solid var(--border); font-size:.875rem; font-weight:500; cursor:pointer; transition:all .15s; color:var(--muted); background:var(--input-bg); user-select:none; }
+  [data-p="Low"]:checked + .priority-label   { color:#21b894; background:rgba(33,184,148,.08); border-color:#21b894; }
+  [data-p="Medium"]:checked + .priority-label { color:#f59e0b; background:rgba(245,158,11,.08); border-color:#f59e0b; }
+  [data-p="High"]:checked + .priority-label   { color:#ef4444; background:rgba(239,68,68,.08); border-color:#ef4444; }
+  [data-p="Urgent"]:checked + .priority-label { color:#7c3aed; background:rgba(124,58,237,.08); border-color:#7c3aed; }
+  .dot { width:8px; height:8px; border-radius:50%; background:currentColor; }
+
+  /* FIELD ERROR */
+  .field-error { color:var(--error); font-size:.8rem; margin-top:.3rem; display:none; }
+  .field-error.visible { display:block; }
+
+  /* SUBMIT */
+  .submit-row { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-top:1.5rem; flex-wrap:wrap; }
+  .submit-note { font-size:.8rem; color:var(--muted); }
+  .btn-submit { background:var(--green); color:white; border:none; border-radius:var(--radius); padding:.75rem 2rem; font-size:1rem; font-weight:700; cursor:pointer; font-family:inherit; transition:background .15s,transform .1s; display:flex; align-items:center; gap:.5rem; }
+  .btn-submit:hover { background:var(--green-dark); }
+  .btn-submit:active { transform:scale(.97); }
+  .btn-submit:disabled { background:var(--border); color:var(--muted); cursor:not-allowed; transform:none; }
+  .spinner { width:18px; height:18px; border:2.5px solid rgba(255,255,255,.4); border-top-color:white; border-radius:50%; animation:spin .7s linear infinite; display:none; }
+
+  /* TOAST */
+  .toast { position:fixed; bottom:calc(1.5rem + env(safe-area-inset-bottom,0px)); left:50%; transform:translateX(-50%) translateY(80px); background:var(--navy); color:white; padding:.85rem 1.4rem; border-radius:var(--radius); box-shadow:var(--shadow-lg); font-size:.92rem; font-weight:500; z-index:100; transition:transform .3s cubic-bezier(.34,1.56,.64,1); white-space:nowrap; max-width:calc(100vw - 2rem); text-align:center; }
+  .toast.show { transform:translateX(-50%) translateY(0); }
+  .toast.success { background:var(--green); }
+  .toast.error-toast { background:#e53e3e; }
+
+  /* SUCCESS */
+  .success-screen { display:none; text-align:center; padding:3rem 1.5rem; }
+  .success-screen.visible { display:block; }
+  .success-circle { width:72px; height:72px; background:rgba(33,184,148,.12); border-radius:50%; display:inline-flex; align-items:center; justify-content:center; margin-bottom:1.2rem; }
+  .success-screen h2 { font-size:1.4rem; margin-bottom:.5rem; }
+  .success-screen p { color:var(--muted); margin-bottom:1.5rem; }
+  .btn-new { background:none; border:1.5px solid var(--green); color:var(--green); border-radius:var(--radius); padding:.6rem 1.6rem; font-size:.95rem; font-weight:600; cursor:pointer; font-family:inherit; transition:all .15s; }
+  .btn-new:hover { background:var(--green); color:white; }
+
+  /* FOOTER */
+  .footer { background:var(--navy); padding:1.5rem; text-align:center; margin-top:2rem; }
+  .footer p { color:rgba(255,255,255,.4); font-size:.78rem; }
+  .footer a { color:rgba(255,255,255,.6); text-decoration:none; }
+  .footer a:hover { color:var(--green); }
+  .char-counter { font-size:.75rem; color:var(--muted); text-align:right; margin-top:.2rem; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <img class="nav-logo" id="navLogo" src="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" alt="Alterna" />
+  <div style="display:flex;align-items:center;gap:.8rem">
+    <!-- logged-out badge -->
+    <span class="nav-badge" id="navBadge">Soporte</span>
+    <!-- logged-in user chip -->
+    <div class="nav-user" id="navUser">
+      <div class="nav-avatar" id="navAvatar">?</div>
+      <span class="nav-user-name" id="navUserName"></span>
+      <button class="nav-logout" onclick="logout()" title="Cerrar sesión">Salir</button>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-icon">
+    <svg width="22" height="22" fill="none" viewBox="0 0 24 24">
+      <path stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+        d="M20 2H4a2 2 0 00-2 2v16l4-4h14a2 2 0 002-2V4a2 2 0 00-2-2z"/>
+    </svg>
+  </div>
+  <h1>Enviar un ticket de soporte</h1>
+  <p>Cuéntanos qué está pasando y nuestro equipo te ayudará a resolverlo.</p>
+</div>
+
+<!-- ── LOGIN SCREEN ── -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-top">
+      <h2>Iniciar sesión</h2>
+      <p>Conecta tu cuenta Zoho para continuar</p>
+    </div>
+    <div class="login-body">
+      <p>Para enviar un ticket necesitamos identificarte. Inicia sesión con tu cuenta Zoho y tus datos se completarán automáticamente.</p>
+      <button class="btn-zoho-login" onclick="loginWithZoho()">
+        <!-- Zoho Z icon -->
+        <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="6" fill="white"/>
+          <text x="5" y="24" font-family="Arial" font-size="22" font-weight="900" fill="#e8512a">Z</text>
+        </svg>
+        Iniciar sesión con Zoho
+      </button>
+      <div class="login-note">Tu sesión es segura y solo se usa para completar el formulario.<br/>No se almacena ningún dato en este sitio.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── LOADING SCREEN ── -->
+<div id="loadingScreen">
+  <div class="loading-ring"></div>
+  <p id="loadingMsg">Verificando sesión…</p>
+</div>
+
+<!-- ── MAIN FORM AREA ── -->
+<main class="main" id="formArea" style="display:none">
+
+  <!-- SUCCESS SCREEN -->
+  <div class="success-screen card" id="successScreen">
+    <div class="success-circle">
+      <svg width="32" height="32" fill="none" viewBox="0 0 24 24">
+        <path stroke="#21b894" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+      </svg>
+    </div>
+    <h2>¡Ticket enviado!</h2>
+    <p>Tu solicitud fue registrada. Recibirás una respuesta en tu correo pronto.</p>
+    <button class="btn-new" onclick="resetForm()">Enviar otro ticket</button>
+  </div>
+
+  <!-- FORM -->
+  <form id="ticketForm" novalidate>
+
+    <!-- USER INFO BANNER -->
+    <div class="user-banner" id="userBanner">
+      <div class="user-banner-avatar" id="bannerAvatar">?</div>
+      <div class="user-banner-info">
+        <div class="user-banner-name" id="bannerName"></div>
+        <div class="user-banner-email" id="bannerEmail"></div>
+      </div>
+      <span class="user-banner-tag">Zoho verificado ✓</span>
+    </div>
+
+    <!-- CONTACT INFO (pre-filled, locked) -->
+    <div class="card">
+      <div class="card-title">Tu información</div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="firstName">Nombre</label>
+          <div class="field-locked">
+            <input type="text" id="firstName" name="firstName" readonly />
+            <svg class="lock-icon" width="14" height="14" fill="none" viewBox="0 0 24 24">
+              <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="2"/>
+              <path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+        <div class="field">
+          <label for="lastName">Apellido</label>
+          <div class="field-locked">
+            <input type="text" id="lastName" name="lastName" readonly />
+            <svg class="lock-icon" width="14" height="14" fill="none" viewBox="0 0 24 24">
+              <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="2"/>
+              <path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="email">Correo electrónico</label>
+          <div class="field-locked">
+            <input type="email" id="email" name="email" readonly />
+            <svg class="lock-icon" width="14" height="14" fill="none" viewBox="0 0 24 24">
+              <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="2"/>
+              <path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+        <div class="field">
+          <label for="phone">Teléfono <span style="font-weight:400;color:var(--muted);font-size:.8rem;">(opcional)</span></label>
+          <input type="tel" id="phone" name="phone" placeholder="+502 5555 0000" autocomplete="tel" />
+        </div>
+      </div>
+    </div>
+
+    <!-- TICKET DETAILS -->
+    <div class="card">
+      <div class="card-title">Detalle de la solicitud</div>
+      <div class="field">
+        <label for="subject">Asunto <span class="req">*</span></label>
+        <input type="text" id="subject" name="subject" placeholder="Describe el problema brevemente" maxlength="200" />
+        <div class="field-error" id="err-subject">Escribe un asunto para el ticket.</div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="category">Categoría <span class="req">*</span></label>
+          <div class="select-wrap">
+            <select id="category" name="category">
+              <option value="">— Selecciona —</option>
+              <option value="Facturación">Facturación</option>
+              <option value="Soporte técnico">Soporte técnico</option>
+              <option value="Consulta general">Consulta general</option>
+              <option value="Conectividad">Conectividad</option>
+              <option value="Hardware">Hardware</option>
+              <option value="Software">Software</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+          <div class="field-error" id="err-category">Selecciona una categoría.</div>
+        </div>
+        <div class="field">
+          <label for="subcategory">Subcategoría <span style="font-weight:400;color:var(--muted);font-size:.8rem;">(opcional)</span></label>
+          <div class="select-wrap">
+            <select id="subcategory" name="subcategory">
+              <option value="">— Selecciona —</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="description">Descripción <span class="req">*</span></label>
+        <textarea id="description" name="description" placeholder="Explica el problema con el mayor detalle posible: pasos para reproducirlo, mensajes de error, etc." maxlength="3000"></textarea>
+        <div class="char-counter"><span id="descCount">0</span>/3000</div>
+        <div class="field-error" id="err-description">Describe el problema.</div>
+      </div>
+      <div class="field">
+        <label>Prioridad</label>
+        <div class="priority-group">
+          <input class="priority-option" type="radio" name="priority" id="p1" value="Low" data-p="Low" checked />
+          <label class="priority-label" for="p1"><span class="dot"></span>Baja</label>
+          <input class="priority-option" type="radio" name="priority" id="p2" value="Medium" data-p="Medium" />
+          <label class="priority-label" for="p2"><span class="dot"></span>Media</label>
+          <input class="priority-option" type="radio" name="priority" id="p3" value="High" data-p="High" />
+          <label class="priority-label" for="p3"><span class="dot"></span>Alta</label>
+          <input class="priority-option" type="radio" name="priority" id="p4" value="Urgent" data-p="Urgent" />
+          <label class="priority-label" for="p4"><span class="dot"></span>Urgente</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- ATTACHMENTS -->
+    <div class="card">
+      <div class="card-title">Archivos adjuntos <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">(opcional)</span></div>
+      <div class="file-area" id="dropZone">
+        <input type="file" id="attachments" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.log" />
+        <div class="file-icon">
+          <svg width="28" height="28" fill="none" viewBox="0 0 24 24">
+            <path stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+          </svg>
+        </div>
+        <p><strong onclick="document.getElementById('attachments').click()">Haz clic para adjuntar</strong> o arrastra archivos aquí</p>
+        <p style="font-size:.75rem;margin-top:.2rem;">Máx. 10 MB por archivo — PNG, PDF, DOC, XLS, ZIP…</p>
+        <div class="file-list" id="fileList"></div>
+      </div>
+    </div>
+
+    <!-- SUBMIT -->
+    <div class="submit-row">
+      <p class="submit-note">Al enviar, aceptas nuestra<br/><a href="https://alterna.com.gt/privacidad" target="_blank" style="color:var(--green)">política de privacidad</a>.</p>
+      <button type="submit" class="btn-submit" id="submitBtn">
+        <span id="btnText">Enviar ticket</span>
+        <div class="spinner" id="spinner"></div>
+        <svg id="btnIcon" width="18" height="18" fill="none" viewBox="0 0 24 24">
+          <path stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+        </svg>
+      </button>
+    </div>
+  </form>
+</main>
+
+<footer class="footer">
+  <p>© 2025 Alterna — <a href="https://alterna.com.gt" target="_blank">alterna.com.gt</a></p>
+</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+//  CONFIGURATION  — edit these values before deploying
+// ══════════════════════════════════════════════════════════════
+const CONFIG = {
+  // Zoho API credentials
+  zohoClientId:    'YOUR_ZOHO_CLIENT_ID',   // from console.zoho.com → API Console
+  zohoRedirectUri: window.location.href.split('?')[0], // this page's URL
+  zohoScopes:      'ZohoDesk.tickets.CREATE,ZohoSupport.tickets.READ,AaaServer.profile.Read',
+
+  // Zoho Desk org settings
+  orgId:        '718939940',
+  departmentId: '512816000000006907',
+
+  // Server proxy (recommended for production — keeps token server-side)
+  useProxy:  false,
+  proxyUrl:  '/api/submit-ticket'
+};
+
+// ══════════════════════════════════════════════════════════════
+//  OAUTH 2.0  (PKCE flow — no backend required)
+// ══════════════════════════════════════════════════════════════
+let zohoAccessToken = null;
+let currentUser     = null;
+
+// Generate a cryptographically random PKCE code verifier
+function generateCodeVerifier() {
+  const array = new Uint8Array(48);
+  crypto.getRandomValues(array);
+  return btoa(String.fromCharCode(...array)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+
+// SHA-256 hash → base64url for PKCE code challenge
+async function generateCodeChallenge(verifier) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(verifier);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+
+async function loginWithZoho() {
+  const verifier  = generateCodeVerifier();
+  const challenge = await generateCodeChallenge(verifier);
+  sessionStorage.setItem('zoho_pkce_verifier', verifier);
+
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id:     CONFIG.zohoClientId,
+    redirect_uri:  CONFIG.zohoRedirectUri,
+    scope:         CONFIG.zohoScopes,
+    code_challenge: challenge,
+    code_challenge_method: 'S256',
+    access_type: 'offline',
+    prompt: 'consent'
+  });
+
+  window.location.href = 'https://accounts.zoho.com/oauth/v2/auth?' + params.toString();
+}
+
+// Exchange authorization code for access token
+async function exchangeCode(code) {
+  const verifier = sessionStorage.getItem('zoho_pkce_verifier');
+  if (!verifier) throw new Error('No PKCE verifier found');
+
+  // NOTE: Zoho requires client_secret for token exchange.
+  // For a pure client-side app, route this through your server proxy.
+  // If useProxy = true, the proxy handles the exchange securely.
+  if (CONFIG.useProxy) {
+    const res = await fetch(CONFIG.proxyUrl + '/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, code_verifier: verifier, redirect_uri: CONFIG.zohoRedirectUri })
+    });
+    if (!res.ok) throw new Error('Token exchange failed');
+    return res.json();
+  } else {
+    // ── DEMO / DEVELOPMENT MODE ───────────────────────────────────────
+    // In production, NEVER put client_secret in the browser.
+    // Replace with your proxy endpoint or use Zoho's implicit flow.
+    // For now we return a simulated token so the UI works end-to-end.
+    console.warn('[Alterna] Token exchange must happen server-side in production. Running in demo mode.');
+    return { access_token: 'DEMO_TOKEN_' + Date.now(), token_type: 'Bearer' };
+  }
+}
+
+// Fetch the logged-in user's Zoho profile
+async function fetchZohoProfile(token) {
+  // Try Zoho Desk /myinfo first (gives name + email used for desk tickets)
+  try {
+    const res = await fetch('https://desk.zoho.com/api/v1/myinfo', {
+      headers: { 'Authorization': 'Zoho-oauthtoken ' + token, 'orgId': CONFIG.orgId }
+    });
+    if (res.ok) {
+      const d = await res.json();
+      return {
+        firstName: d.firstName || '',
+        lastName:  d.lastName  || '',
+        email:     d.emailId   || d.email || '',
+        phone:     d.phone     || '',
+        avatarUrl: d.photoURL  || null,
+        zohoId:    d.id        || ''
+      };
+    }
+  } catch(_) {}
+
+  // Fallback: Zoho Accounts profile
+  try {
+    const res = await fetch('https://accounts.zoho.com/oauth/user/info', {
+      headers: { 'Authorization': 'Zoho-oauthtoken ' + token }
+    });
+    if (res.ok) {
+      const d = await res.json();
+      const name = (d.Display_Name || d.display_name || '').split(' ');
+      return {
+        firstName: d.First_Name || name[0] || '',
+        lastName:  d.Last_Name  || name.slice(1).join(' ') || '',
+        email:     d.Email      || d.email || '',
+        phone:     '',
+        avatarUrl: null,
+        zohoId:    d.ZSOID || ''
+      };
+    }
+  } catch(_) {}
+
+  // Demo fallback when running without real credentials
+  return {
+    firstName: 'Usuario', lastName: 'Demo',
+    email: 'usuario.demo@alterna.com',
+    phone: '', avatarUrl: null, zohoId: 'demo'
+  };
+}
+
+function applyUserToForm(user) {
+  currentUser = user;
+
+  // Lock fields
+  document.getElementById('firstName').value = user.firstName;
+  document.getElementById('lastName').value  = user.lastName;
+  document.getElementById('email').value     = user.email;
+  if (user.phone) document.getElementById('phone').value = user.phone;
+
+  // Banner
+  const initials = ((user.firstName[0]||'') + (user.lastName[0]||'')).toUpperCase() || '?';
+  const fullName = (user.firstName + ' ' + user.lastName).trim();
+
+  document.getElementById('bannerName').textContent  = fullName;
+  document.getElementById('bannerEmail').textContent = user.email;
+
+  ['bannerAvatar', 'navAvatar'].forEach(id => {
+    const el = document.getElementById(id);
+    if (user.avatarUrl) {
+      el.innerHTML = `<img src="${user.avatarUrl}" alt="${fullName}" />`;
+    } else {
+      el.textContent = initials;
+    }
+  });
+
+  document.getElementById('navUserName').textContent = user.firstName;
+  document.getElementById('navBadge').style.display  = 'none';
+  document.getElementById('navUser').classList.add('visible');
+}
+
+function showScreen(name) {
+  document.getElementById('loginScreen').classList.remove('visible');
+  document.getElementById('loadingScreen').classList.remove('visible');
+  document.getElementById('formArea').style.display = 'none';
+
+  if (name === 'login')   { document.getElementById('loginScreen').classList.add('visible'); }
+  if (name === 'loading') { document.getElementById('loadingScreen').classList.add('visible'); }
+  if (name === 'form')    { document.getElementById('formArea').style.display = 'block'; }
+}
+
+function setLoadingMsg(msg) { document.getElementById('loadingMsg').textContent = msg; }
+
+// ── BOOT: check URL for OAuth callback code ─────────────────────────────
+async function boot() {
+  showScreen('loading');
+  setLoadingMsg('Verificando sesión…');
+
+  const params  = new URLSearchParams(window.location.search);
+  const code    = params.get('code');
+  const error   = params.get('error');
+
+  // Clean URL so the code can't be reused
+  if (code || error) {
+    const cleanUrl = window.location.origin + window.location.pathname;
+    window.history.replaceState({}, document.title, cleanUrl);
+  }
+
+  if (error) {
+    showToast('Error al iniciar sesión: ' + error, 'error-toast');
+    showScreen('login');
+    return;
+  }
+
+  if (code) {
+    setLoadingMsg('Obteniendo token de acceso…');
+    try {
+      const tokenData = await exchangeCode(code);
+      zohoAccessToken = tokenData.access_token;
+      sessionStorage.setItem('zoho_access_token', zohoAccessToken);
+      sessionStorage.removeItem('zoho_pkce_verifier');
+
+      setLoadingMsg('Cargando tu perfil…');
+      const user = await fetchZohoProfile(zohoAccessToken);
+      applyUserToForm(user);
+      showScreen('form');
+      showToast('✓ Bienvenido, ' + user.firstName, 'success');
+      return;
+    } catch(e) {
+      console.error('Auth error:', e);
+      showToast('Error de autenticación. Intenta de nuevo.', 'error-toast');
+      showScreen('login');
+      return;
+    }
+  }
+
+  // Check for existing session token
+  const saved = sessionStorage.getItem('zoho_access_token');
+  if (saved) {
+    zohoAccessToken = saved;
+    setLoadingMsg('Restaurando sesión…');
+    try {
+      const user = await fetchZohoProfile(zohoAccessToken);
+      applyUserToForm(user);
+      showScreen('form');
+      return;
+    } catch(e) {
+      sessionStorage.removeItem('zoho_access_token');
+    }
+  }
+
+  showScreen('login');
+}
+
+function logout() {
+  sessionStorage.removeItem('zoho_access_token');
+  sessionStorage.removeItem('zoho_pkce_verifier');
+  zohoAccessToken = null;
+  currentUser = null;
+  document.getElementById('navBadge').style.display = '';
+  document.getElementById('navUser').classList.remove('visible');
+  showScreen('login');
+  showToast('Sesión cerrada');
+}
+
+// ══════════════════════════════════════════════════════════════
+//  SUBCATEGORIES
+// ══════════════════════════════════════════════════════════════
+const subcategories = {
+  'Facturación':      ['Consulta de factura','Error en cobro','Cambio de plan','Cancelación'],
+  'Soporte técnico':  ['Configuración','Error de sistema','Rendimiento','Reinstalación'],
+  'Consulta general': ['Información de producto','Precios','Horarios','Otros'],
+  'Conectividad':     ['Sin conexión','Velocidad lenta','Intermitencia','VPN'],
+  'Hardware':         ['Equipo dañado','Solicitud de equipo','Reposición','Mantenimiento'],
+  'Software':         ['Instalación','Actualización','Licencia','Error de aplicación'],
+  'Otro':             ['Otro']
+};
+document.getElementById('category').addEventListener('change', function() {
+  const sub = document.getElementById('subcategory');
+  sub.innerHTML = '<option value="">— Selecciona —</option>';
+  (subcategories[this.value] || []).forEach(o => {
+    const el = document.createElement('option'); el.value = o; el.textContent = o; sub.appendChild(el);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+//  CHAR COUNTER
+// ══════════════════════════════════════════════════════════════
+document.getElementById('description').addEventListener('input', function() {
+  document.getElementById('descCount').textContent = this.value.length;
+});
+
+// ══════════════════════════════════════════════════════════════
+//  FILE HANDLING
+// ══════════════════════════════════════════════════════════════
+let selectedFiles = [];
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('attachments');
+const fileList  = document.getElementById('fileList');
+
+dropZone.addEventListener('click', e => { if (!e.target.closest('.file-remove,.file-item')) fileInput.click(); });
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFiles([...e.dataTransfer.files]); });
+fileInput.addEventListener('change', () => { handleFiles([...fileInput.files]); fileInput.value = ''; });
+
+function handleFiles(files) {
+  files.forEach(f => {
+    if (f.size > 10*1024*1024) { showToast('Archivo ' + f.name + ' supera 10 MB', 'error-toast'); return; }
+    if (!selectedFiles.find(x => x.name === f.name)) selectedFiles.push(f);
+  });
+  renderFiles();
+}
+function renderFiles() {
+  fileList.innerHTML = '';
+  selectedFiles.forEach((f, i) => {
+    const item = document.createElement('div'); item.className = 'file-item';
+    item.innerHTML = `<svg width="14" height="14" fill="none" viewBox="0 0 24 24" style="flex-shrink:0"><path stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline stroke="currentColor" stroke-width="2" points="14 2 14 8 20 8"/></svg><span class="file-item-name">${f.name}</span><span style="color:var(--muted);font-size:.75rem">${(f.size/1024).toFixed(0)} KB</span><button class="file-remove" title="Quitar" onclick="removeFile(${i})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M18 6L6 18M6 6l12 12"/></svg></button>`;
+    fileList.appendChild(item);
+  });
+}
+function removeFile(i) { selectedFiles.splice(i,1); renderFiles(); }
+
+// ══════════════════════════════════════════════════════════════
+//  VALIDATION
+// ══════════════════════════════════════════════════════════════
+function validate() {
+  let ok = true;
+  ['subject','category','description'].forEach(id => {
+    const el = document.getElementById(id);
+    const err = document.getElementById('err-' + id);
+    if (!el.value.trim()) {
+      el.classList.add('error'); err.classList.add('visible');
+      if (ok) el.focus();
+      ok = false;
+    } else { el.classList.remove('error'); err.classList.remove('visible'); }
+  });
+  return ok;
+}
+['subject','category','description'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    document.getElementById(id).classList.remove('error');
+    document.getElementById('err-' + id).classList.remove('visible');
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════════════════════
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast ' + type; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  SUBMIT
+// ══════════════════════════════════════════════════════════════
+document.getElementById('ticketForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  if (!validate()) return;
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  document.getElementById('btnText').textContent = 'Enviando…';
+  document.getElementById('spinner').style.display = 'block';
+  document.getElementById('btnIcon').style.display = 'none';
+
+  const firstName   = document.getElementById('firstName').value.trim();
+  const lastName    = document.getElementById('lastName').value.trim();
+  const email       = document.getElementById('email').value.trim();
+  const phone       = document.getElementById('phone').value.trim();
+  const subject     = document.getElementById('subject').value.trim();
+  const category    = document.getElementById('category').value;
+  const subcategory = document.getElementById('subcategory').value;
+  const description = document.getElementById('description').value.trim();
+  const priority    = document.querySelector('input[name="priority"]:checked')?.value || 'Low';
+
+  const fullDescription = [
+    description,
+    phone       ? '\n\nTeléfono: ' + phone         : '',
+    subcategory ? '\nSubcategoría: ' + subcategory : ''
+  ].join('');
+
+  const ticketPayload = {
+    subject, description: fullDescription, email,
+    phone: phone || undefined, priority, category,
+    departmentId: CONFIG.departmentId,
+    cf: { cf_nombre_completo: firstName + ' ' + lastName }
+  };
+
+  try {
+    let response;
+    if (CONFIG.useProxy) {
+      response = await fetch(CONFIG.proxyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticket: ticketPayload })
+      });
+    } else {
+      response = await fetch('https://desk.zoho.com/api/v1/tickets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Zoho-oauthtoken ' + zohoAccessToken,
+          'orgId': CONFIG.orgId
+        },
+        body: JSON.stringify(ticketPayload)
+      });
+    }
+
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const data = await response.json();
+
+    document.getElementById('ticketForm').style.display = 'none';
+    document.getElementById('successScreen').classList.add('visible');
+    showToast('✓ Ticket #' + (data.ticketNumber || data.id) + ' creado', 'success');
+
+  } catch(err) {
+    console.error(err);
+    // Demo mode: show success anyway when no real token
+    if (zohoAccessToken && zohoAccessToken.startsWith('DEMO_TOKEN')) {
+      document.getElementById('ticketForm').style.display = 'none';
+      document.getElementById('successScreen').classList.add('visible');
+      showToast('✓ Ticket enviado (modo demo)', 'success');
+    } else {
+      showToast('Error al enviar. Intenta de nuevo.', 'error-toast');
+      btn.disabled = false;
+      document.getElementById('btnText').textContent = 'Enviar ticket';
+      document.getElementById('spinner').style.display = 'none';
+      document.getElementById('btnIcon').style.display = '';
+    }
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+//  RESET
+// ══════════════════════════════════════════════════════════════
+function resetForm() {
+  document.getElementById('ticketForm').reset();
+  document.getElementById('ticketForm').style.display = '';
+  document.getElementById('successScreen').classList.remove('visible');
+  selectedFiles = []; renderFiles();
+  document.getElementById('descCount').textContent = '0';
+  document.getElementById('subcategory').innerHTML = '<option value="">— Selecciona —</option>';
+  if (currentUser) {
+    document.getElementById('firstName').value = currentUser.firstName;
+    document.getElementById('lastName').value  = currentUser.lastName;
+    document.getElementById('email').value     = currentUser.email;
+  }
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = false;
+  document.getElementById('btnText').textContent = 'Enviar ticket';
+  document.getElementById('spinner').style.display = 'none';
+  document.getElementById('btnIcon').style.display = '';
+  window.scrollTo(0,0);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════════
+boot();
+</script>
+</body>
+</html>
