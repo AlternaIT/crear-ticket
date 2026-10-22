@@ -372,6 +372,32 @@
         </div>
       </div>
       <div class="field">
+        <label for="application">Aplicación <span class="req">*</span></label>
+        <div class="select-wrap">
+          <select id="application" name="application">
+            <option value="">— Selecciona —</option>
+            <option value="Mail">Mail</option>
+            <option value="Cliq">Cliq</option>
+            <option value="CRM">CRM</option>
+            <option value="Calendar">Calendar</option>
+            <option value="Project">Project</option>
+            <option value="Form">Form</option>
+            <option value="Sitio Web">Sitio Web</option>
+            <option value="Sprints">Sprints</option>
+            <option value="People">People</option>
+            <option value="Drive">Drive</option>
+            <option value="Sign">Sign</option>
+            <option value="Expense">Expense</option>
+            <option value="Books">Books</option>
+            <option value="Aplicativo control de honorarios">Aplicativo control de honorarios</option>
+            <option value="Analytics">Analytics</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </div>
+        <div class="field-error" id="err-application">Selecciona la aplicación.</div>
+      </div>
+
+      <div class="field">
         <label for="description">Descripción <span class="req">*</span></label>
         <textarea id="description" name="description" placeholder="Explica el problema con el mayor detalle posible: pasos para reproducirlo, mensajes de error, etc." maxlength="3000"></textarea>
         <div class="char-counter"><span id="descCount">0</span>/3000</div>
@@ -443,7 +469,12 @@ const CONFIG = {
 
   // Server proxy (recommended for production — keeps token server-side)
   useProxy:  false,
-  proxyUrl:  '/api/submit-ticket'
+  proxyUrl:  '/api/submit-ticket',
+
+  // Nombres de campos custom en Zoho Desk (Tickets → Fields → API Name)
+  // Verifica los nombres exactos en: Configuración → Tickets → Fields
+  cf_departamento: 'cf_departamento_area',          // "Departamento/Área"
+  cf_aplicacion:   'cf_aplicacion_en_la_que_necesita_apoyo'  // "Aplicación en la que necesita apoyo."
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -612,6 +643,20 @@ function showScreen(name) {
 
 function setLoadingMsg(msg) { document.getElementById('loadingMsg').textContent = msg; }
 
+// ── Diagnóstico: muestra en consola los nombres API de los campos custom ──
+async function logTicketFields(token) {
+  try {
+    const res = await fetch('https://desk.zoho.com/api/v1/tickets/fields', {
+      headers: { 'Authorization': 'Zoho-oauthtoken ' + token, 'orgId': CONFIG.orgId }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const custom = (data.fields || []).filter(f => f.apiName && f.apiName.startsWith('cf_'));
+    console.table(custom.map(f => ({ label: f.displayLabel, apiName: f.apiName, type: f.type })));
+    console.info('👆 Copia los apiName correctos en CONFIG.cf_departamento y CONFIG.cf_aplicacion');
+  } catch(_) {}
+}
+
 // ── BOOT: check URL for OAuth callback code ─────────────────────────────
 async function boot() {
   showScreen('loading');
@@ -642,6 +687,7 @@ async function boot() {
       applyUserToForm(user);
       showScreen('form');
       showToast('✓ Bienvenido, ' + user.firstName, 'success');
+      logTicketFields(zohoAccessToken); // diagnóstico — ver DevTools → Console
       return;
     } catch(e) {
       console.error('Auth error:', e);
@@ -743,7 +789,7 @@ function removeFile(i) { selectedFiles.splice(i,1); renderFiles(); }
 // ══════════════════════════════════════════════════════════════
 function validate() {
   let ok = true;
-  ['subject','category','description'].forEach(id => {
+  ['subject','category','application','description'].forEach(id => {
     const el = document.getElementById(id);
     const err = document.getElementById('err-' + id);
     if (!el.value.trim()) {
@@ -754,7 +800,7 @@ function validate() {
   });
   return ok;
 }
-['subject','category','description'].forEach(id => {
+['subject','category','application','description'].forEach(id => {
   document.getElementById(id).addEventListener('input', () => {
     document.getElementById(id).classList.remove('error');
     document.getElementById('err-' + id).classList.remove('visible');
@@ -825,13 +871,15 @@ document.getElementById('ticketForm').addEventListener('submit', async function(
   const subject     = document.getElementById('subject').value.trim();
   const category    = document.getElementById('category').value;
   const subcategory = document.getElementById('subcategory').value;
+  const application = document.getElementById('application').value;
   const description = document.getElementById('description').value.trim();
   const priority    = document.querySelector('input[name="priority"]:checked')?.value || 'Low';
 
   const fullDescription = [
     description,
-    phone       ? '\n\nTeléfono: ' + phone         : '',
-    subcategory ? '\nSubcategoría: ' + subcategory : ''
+    application ? '\n\nAplicación: ' + application  : '',
+    phone       ? '\nTeléfono: '    + phone          : '',
+    subcategory ? '\nSubcategoría: ' + subcategory   : ''
   ].join('');
 
   try {
@@ -848,7 +896,11 @@ document.getElementById('ticketForm').addEventListener('submit', async function(
       email, phone: phone || undefined,
       priority, category,
       departmentId: CONFIG.departmentId,
-      cf: { cf_nombre_completo: firstName + ' ' + lastName }
+      cf: {
+        cf_nombre_completo: firstName + ' ' + lastName,
+        [CONFIG.cf_departamento]: currentUser?.department || '',
+        [CONFIG.cf_aplicacion]:   application
+      }
     };
 
     document.getElementById('btnText').textContent = 'Enviando…';
